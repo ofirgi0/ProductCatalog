@@ -32,6 +32,23 @@
     </plurals>
     <string name="view_cart">View cart</string>
 
+    <string name="cart_title">Shopping Cart</string>
+    <string name="clear_cart">Clear cart</string>
+    <string name="clear_cart_title">Clear cart?</string>
+    <string name="clear_cart_message">All items will be removed from your cart.</string>
+    <string name="clear">Clear</string>
+    <string name="cancel">Cancel</string>
+    <string name="cart_empty_title">Your cart is empty</string>
+    <string name="cart_empty_message">Products you add will show up here.</string>
+    <string name="unit_price">%s each</string>
+    <string name="decrease_quantity">Decrease quantity of %s</string>
+    <string name="increase_quantity">Increase quantity of %s</string>
+    <string name="remove_item">Remove %s</string>
+    <string name="quantity_description">Quantity %d</string>
+    <string name="total">Total</string>
+    <string name="checkout">Checkout</string>
+    <string name="checkout_done">Thanks! Your order was placed.</string>
+
     <string name="discount_percent">-%d%%</string>
     <string name="rating_content_description">Rated %1$s out of 5</string>
 </resources>
