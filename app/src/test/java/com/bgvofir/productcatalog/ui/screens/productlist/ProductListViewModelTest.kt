@@ -252,6 +252,95 @@ class ProductListViewModelTest {
     }
 
     @Test
+    fun `pull to refresh reloads the first page and keeps the list visible meanwhile`() = runTest {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+        viewModel.loadMore()
+        advanceUntilIdle()
+        assertEquals(40, viewModel.page.products.size)
+        repository.calls.clear()
+        val gate = CompletableDeferred<Unit>()
+        repository.firstPageGate = gate
+
+        viewModel.refresh()
+        runCurrent()
+        assertTrue(viewModel.uiState.value.isRefreshing)
+        // Still the old list, not the full-screen Loading state.
+        assertEquals(40, viewModel.page.products.size)
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.isRefreshing)
+        assertEquals(listOf("all:0"), repository.calls)
+        assertEquals(20, viewModel.page.products.size)
+    }
+
+    @Test
+    fun `refreshing during load more clears the footer and ignores the old page`() = runTest {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+        val gate = CompletableDeferred<Unit>()
+        repository.nextPageGate = gate
+        viewModel.loadMore()
+        runCurrent()
+        assertTrue(viewModel.page.isLoadingMore)
+
+        viewModel.refresh()
+        runCurrent()
+        assertFalse(viewModel.page.isLoadingMore)
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.isRefreshing)
+        assertEquals(20, viewModel.page.products.size)
+    }
+
+    @Test
+    fun `reaching the end during a refresh loads the next page once the refresh finishes`() = runTest {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+        val gate = CompletableDeferred<Unit>()
+        repository.firstPageGate = gate
+        viewModel.refresh()
+        runCurrent()
+
+        // The grid asks for more while the refresh is still running.
+        viewModel.loadMore()
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isRefreshing)
+        assertEquals(40, viewModel.page.products.size)
+    }
+
+    @Test
+    fun `a failed refresh shows the error state`() = runTest {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        repository.failNextProductCall = true
+        viewModel.refresh()
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isRefreshing)
+        assertEquals(DataState.Error(ErrorType.NETWORK), viewModel.uiState.value.content)
+    }
+
+    @Test
+    fun `changing the filter during a refresh ends the refresh`() = runTest {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.refresh()
+        viewModel.onCategorySelected("beauty")
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isRefreshing)
+        assertEquals("beauty", viewModel.uiState.value.selectedCategory)
+        assertTrue(viewModel.uiState.value.content is DataState.Success)
+    }
+
+    @Test
     fun `the search field query updates synchronously`() = runTest {
         val viewModel = createViewModel()
 

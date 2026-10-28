@@ -56,9 +56,14 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.bgvofir.productcatalog.R
+import androidx.compose.ui.tooling.preview.PreviewLightDark
+import androidx.compose.ui.tooling.preview.PreviewParameter
+import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import com.bgvofir.productcatalog.data.CartItem
 import com.bgvofir.productcatalog.ui.components.EmptyState
 import com.bgvofir.productcatalog.ui.components.formatPrice
+import com.bgvofir.productcatalog.ui.preview.PreviewData
+import com.bgvofir.productcatalog.ui.theme.ProductCatalogTheme
 
 @Composable
 fun CartScreen(
@@ -248,6 +253,26 @@ private fun QuantityStepper(
         IconButton(onClick = onIncrement, enabled = canIncrement) {
             Icon(Icons.Default.Add, contentDescription = stringResource(R.string.increase_quantity, title))
         }
+    }
+}
+
+private class CartStateProvider : PreviewParameterProvider<CartUiState> {
+    override val values = sequenceOf(PreviewData.cartItems.toCartUiState(), CartUiState())
+}
+
+@PreviewLightDark
+@Composable
+private fun CartPreview(@PreviewParameter(CartStateProvider::class) state: CartUiState) {
+    ProductCatalogTheme {
+        CartContent(
+            state = state,
+            onBack = {},
+            onIncrement = {},
+            onDecrement = {},
+            onRemove = {},
+            onClearCart = {},
+            onCheckout = {},
+        )
     }
 }
 

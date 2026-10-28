@@ -2,10 +2,13 @@ package com.bgvofir.productcatalog.ui.screens.productlist
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
@@ -15,9 +18,11 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Refresh
@@ -38,6 +43,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,22 +55,60 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.tooling.preview.PreviewLightDark
+import androidx.compose.ui.tooling.preview.PreviewParameter
+import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bgvofir.productcatalog.R
 import com.bgvofir.productcatalog.data.DataState
+import com.bgvofir.productcatalog.data.ErrorType
 import com.bgvofir.productcatalog.data.api.Category
 import com.bgvofir.productcatalog.ui.components.EmptyState
 import com.bgvofir.productcatalog.ui.components.ErrorState
 import com.bgvofir.productcatalog.ui.components.LoadingState
 import com.bgvofir.productcatalog.ui.components.ProductCard
+import com.bgvofir.productcatalog.ui.preview.PreviewData
+import com.bgvofir.productcatalog.ui.theme.ProductCatalogTheme
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 
 // Start loading the next page when the last visible item is this close to the end.
 private const val LOAD_MORE_THRESHOLD = 6
+
+// Below this content height (phones in landscape) the search field and chips share one row.
+private val COMPACT_HEIGHT = 480.dp
+
+private class ProductListStateProvider : PreviewParameterProvider<ProductListUiState> {
+    private val base = ProductListUiState(categories = PreviewData.categories, cartCount = 3)
+    override val values = sequenceOf(
+        base.copy(content = DataState.Success(ProductPage(PreviewData.products, total = 40, isLoadingMore = true))),
+        base.copy(content = DataState.Loading),
+        base.copy(content = DataState.Success(ProductPage(emptyList(), total = 0)), query = "xyz"),
+        base.copy(content = DataState.Error(ErrorType.NETWORK), categoriesFailed = true, categories = emptyList()),
+    )
+}
+
+@PreviewLightDark
+@Composable
+private fun ProductListPreview(@PreviewParameter(ProductListStateProvider::class) state: ProductListUiState) {
+    ProductCatalogTheme {
+        ProductListContent(
+            state = state,
+            searchQuery = state.query,
+            onQueryChange = {},
+            onCategorySelected = {},
+            onRetryCategories = {},
+            onRetry = {},
+            onRefresh = {},
+            onLoadMore = {},
+            onProductClick = {},
+            onCartClick = {},
+        )
+    }
+}
 
 // Like GridCells.Adaptive(160.dp), but never fewer than two columns. Plain Adaptive drops to one
 // column on 360dp phones once the screen padding and gaps are taken out.
@@ -92,6 +136,7 @@ fun ProductListScreen(
         onCategorySelected = viewModel::onCategorySelected,
         onRetryCategories = viewModel::retryCategories,
         onRetry = viewModel::retry,
+        onRefresh = viewModel::refresh,
         onLoadMore = viewModel::loadMore,
         onProductClick = onProductClick,
         onCartClick = onCartClick,
@@ -108,6 +153,7 @@ fun ProductListContent(
     onCategorySelected: (String?) -> Unit,
     onRetryCategories: () -> Unit,
     onRetry: () -> Unit,
+    onRefresh: () -> Unit,
     onLoadMore: () -> Unit,
     onProductClick: (Int) -> Unit,
     onCartClick: () -> Unit,
@@ -120,40 +166,97 @@ fun ProductListContent(
             )
         },
     ) { padding ->
-        Column(
+        BoxWithConstraints(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize(),
         ) {
-            SearchField(
-                query = searchQuery,
-                onQueryChange = onQueryChange,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            )
-            CategoryChips(
-                categories = state.categories,
-                selected = state.selectedCategory,
-                failed = state.categoriesFailed,
-                onSelected = onCategorySelected,
-                onRetry = onRetryCategories,
-            )
-            when (val content = state.content) {
-                DataState.Loading -> LoadingState()
-                is DataState.Error -> ErrorState(type = content.type, onRetry = onRetry)
-                is DataState.Success -> if (content.data.products.isEmpty()) {
-                    EmptyState(
-                        icon = Icons.Default.SearchOff,
-                        title = stringResource(R.string.empty_products_title),
-                        message = stringResource(R.string.empty_products_message),
-                    )
+            // On short screens (phones in landscape) search and chips share one row, leaving
+            // more room for the products.
+            val compactHeight = maxHeight < COMPACT_HEIGHT
+            Column {
+                if (compactHeight) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        SearchField(
+                            query = searchQuery,
+                            onQueryChange = onQueryChange,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
+                        )
+                        CategoryChips(
+                            categories = state.categories,
+                            selected = state.selectedCategory,
+                            failed = state.categoriesFailed,
+                            onSelected = onCategorySelected,
+                            onRetry = onRetryCategories,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                 } else {
-                    ProductGrid(
-                        page = content.data,
-                        onProductClick = onProductClick,
-                        onLoadMore = onLoadMore,
-                        onRetryLoadMore = onRetry,
+                    SearchField(
+                        query = searchQuery,
+                        onQueryChange = onQueryChange,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    )
+                    CategoryChips(
+                        categories = state.categories,
+                        selected = state.selectedCategory,
+                        failed = state.categoriesFailed,
+                        onSelected = onCategorySelected,
+                        onRetry = onRetryCategories,
                     )
                 }
+                ListContent(
+                    state = state,
+                    onRetry = onRetry,
+                    onRefresh = onRefresh,
+                    onLoadMore = onLoadMore,
+                    onProductClick = onProductClick,
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ListContent(
+    state: ProductListUiState,
+    onRetry: () -> Unit,
+    onRefresh: () -> Unit,
+    onLoadMore: () -> Unit,
+    onProductClick: (Int) -> Unit,
+) {
+    when (val content = state.content) {
+        DataState.Loading -> LoadingState()
+        is DataState.Error -> ErrorState(type = content.type, onRetry = onRetry)
+        is DataState.Success -> PullToRefreshBox(
+            isRefreshing = state.isRefreshing,
+            onRefresh = onRefresh,
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            if (content.data.products.isEmpty()) {
+                // Scrollable so the pull gesture also works on the empty state; the explicit
+                // height keeps the message centered inside the scroll container.
+                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                    val height = maxHeight
+                    Box(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                        EmptyState(
+                            icon = Icons.Default.SearchOff,
+                            title = stringResource(R.string.empty_products_title),
+                            message = stringResource(R.string.empty_products_message),
+                            modifier = Modifier.height(height),
+                        )
+                    }
+                }
+            } else {
+                ProductGrid(
+                    page = content.data,
+                    onProductClick = onProductClick,
+                    onLoadMore = onLoadMore,
+                    onRetryLoadMore = onRetry,
+                )
             }
         }
     }
@@ -209,8 +312,10 @@ private fun CategoryChips(
     failed: Boolean,
     onSelected: (String?) -> Unit,
     onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     LazyRow(
+        modifier = modifier,
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {

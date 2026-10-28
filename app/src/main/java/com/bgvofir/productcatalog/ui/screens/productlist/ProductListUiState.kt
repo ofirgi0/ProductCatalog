@@ -12,6 +12,8 @@ data class ProductListUiState(
     val categoriesFailed: Boolean = false,
     // Loading / Error cover the whole list. Success with no products is the empty state.
     val content: DataState<ProductPage> = DataState.Loading,
+    // Pull-to-refresh in progress; the current list stays visible meanwhile.
+    val isRefreshing: Boolean = false,
     val cartCount: Int = 0,
 )
 

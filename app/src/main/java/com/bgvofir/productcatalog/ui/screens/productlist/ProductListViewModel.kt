@@ -59,6 +59,10 @@ class ProductListViewModel @Inject constructor(
     private var pageJob: Job? = null
     private var categoriesJob: Job? = null
 
+    // The user reached the end of the list while a refresh was running. The grid won't ask again
+    // if nothing changes on screen, so the next page is loaded once the refresh finishes.
+    private var loadMoreAfterRefresh = false
+
     init {
         loadCategories()
         viewModelScope.launch {
@@ -88,8 +92,13 @@ class ProductListViewModel @Inject constructor(
     fun retryCategories() = loadCategories()
 
     fun loadMore() {
+        if (state.value.isRefreshing) {
+            loadMoreAfterRefresh = true
+            return
+        }
+        // No page yet means the first page is still loading; isLoadingMore means a page is on its way.
         val page = (state.value.content as? DataState.Success)?.data ?: return
-        if (page.isLoadingMore || page.loadMoreFailed || page.endReached || pageJob?.isActive == true) return
+        if (page.isLoadingMore || page.loadMoreFailed || page.endReached) return
 
         updatePage { copy(isLoadingMore = true) }
         pageJob = viewModelScope.launch {
@@ -122,20 +131,42 @@ class ProductListViewModel @Inject constructor(
         }
     }
 
+    // Pull-to-refresh: reloads the first page of the current filter without the full-screen spinner.
+    fun refresh() {
+        if (state.value.categories.isEmpty()) loadCategories()
+        pageJob?.cancel()
+        state.update { it.copy(isRefreshing = true) }
+        // A cancelled "load more" must not leave its footer spinner or retry row on screen.
+        updatePage { copy(isLoadingMore = false, loadMoreFailed = false) }
+        pageJob = viewModelScope.launch {
+            val content = firstPage(currentFilter)
+            state.update { it.copy(content = content, isRefreshing = false) }
+            if (loadMoreAfterRefresh) {
+                loadMoreAfterRefresh = false
+                loadMore()
+            }
+        }
+    }
+
     private fun loadFirstPage(filter: Filter) {
         currentFilter = filter
         pageJob?.cancel()
         if (state.value.categories.isEmpty()) loadCategories()
-        state.update { it.copy(content = DataState.Loading) }
+        // A new filter also ends a refresh that was still running (its job was just cancelled).
+        loadMoreAfterRefresh = false
+        state.update { it.copy(content = DataState.Loading, isRefreshing = false) }
         pageJob = viewModelScope.launch {
-            val content = when (val result = fetch(filter, skip = 0)) {
-                is DataState.Success -> DataState.Success(ProductPage(result.data.products, result.data.total))
-                is DataState.Error -> result
-                DataState.Loading -> DataState.Loading
-            }
+            val content = firstPage(filter)
             state.update { it.copy(content = content) }
         }
     }
+
+    private suspend fun firstPage(filter: Filter): DataState<ProductPage> =
+        when (val result = fetch(filter, skip = 0)) {
+            is DataState.Success -> DataState.Success(ProductPage(result.data.products, result.data.total))
+            is DataState.Error -> result
+            DataState.Loading -> DataState.Loading
+        }
 
     private fun loadCategories() {
         if (categoriesJob?.isActive == true) return

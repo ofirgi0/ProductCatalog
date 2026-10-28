@@ -1,0 +1,6 @@
+<resources>
+    <!-- Only the window before Compose draws; the app's colors come from ProductCatalogTheme. -->
+    <style name="Theme.ProductCatalog" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#FAFAFA</item>
+    </style>
+</resources>

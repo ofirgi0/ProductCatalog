@@ -46,13 +46,19 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.bgvofir.productcatalog.R
+import androidx.compose.ui.tooling.preview.PreviewLightDark
+import androidx.compose.ui.tooling.preview.PreviewParameter
+import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import com.bgvofir.productcatalog.data.DataState
+import com.bgvofir.productcatalog.data.ErrorType
 import com.bgvofir.productcatalog.data.api.Product
 import com.bgvofir.productcatalog.ui.components.DiscountTag
 import com.bgvofir.productcatalog.ui.components.ErrorState
 import com.bgvofir.productcatalog.ui.components.LoadingState
 import com.bgvofir.productcatalog.ui.components.Rating
 import com.bgvofir.productcatalog.ui.components.formatPrice
+import com.bgvofir.productcatalog.ui.preview.PreviewData
+import com.bgvofir.productcatalog.ui.theme.ProductCatalogTheme
 
 @Composable
 fun ProductDetailScreen(
@@ -270,6 +276,29 @@ private fun PriceRow(product: Product) {
             )
         }
         if (product.hasDiscount) DiscountTag(product.discountPercentage)
+    }
+}
+
+private class ProductDetailStateProvider : PreviewParameterProvider<ProductDetailUiState> {
+    override val values = sequenceOf(
+        ProductDetailUiState(product = DataState.Success(PreviewData.mascara)),
+        ProductDetailUiState(product = DataState.Success(PreviewData.outOfStockPhone)),
+        ProductDetailUiState(product = DataState.Error(ErrorType.NOT_FOUND)),
+    )
+}
+
+@PreviewLightDark
+@Composable
+private fun ProductDetailPreview(@PreviewParameter(ProductDetailStateProvider::class) state: ProductDetailUiState) {
+    ProductCatalogTheme {
+        ProductDetailContent(
+            state = state,
+            onBack = {},
+            onRetry = {},
+            onAddToCart = {},
+            onMessageShown = {},
+            onCartClick = {},
+        )
     }
 }
 

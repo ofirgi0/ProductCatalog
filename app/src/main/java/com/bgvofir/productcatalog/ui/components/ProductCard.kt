@@ -19,8 +19,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import coil.compose.AsyncImage
 import com.bgvofir.productcatalog.data.api.Product
+import com.bgvofir.productcatalog.ui.preview.PreviewData
+import com.bgvofir.productcatalog.ui.theme.ProductCatalogTheme
 
 @Composable
 fun ProductCard(
@@ -70,5 +74,13 @@ fun ProductCard(
             }
             Rating(product.rating)
         }
+    }
+}
+
+@PreviewLightDark
+@Composable
+private fun ProductCardPreview() {
+    ProductCatalogTheme {
+        ProductCard(product = PreviewData.mascara, onClick = {}, modifier = Modifier.width(180.dp))
     }
 }

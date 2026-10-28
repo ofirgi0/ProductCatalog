@@ -22,6 +22,9 @@ class FakeProductRepository : IProductRepository {
     // change the filter while a page is still in flight.
     var nextPageGate: CompletableDeferred<Unit>? = null
 
+    // The same for first-page requests (skip == 0), e.g. to observe a refresh while it runs.
+    var firstPageGate: CompletableDeferred<Unit>? = null
+
     override suspend fun getProducts(limit: Int, skip: Int) = page("all:$skip", products, limit, skip)
 
     override suspend fun searchProducts(query: String, limit: Int, skip: Int) =
@@ -43,7 +46,7 @@ class FakeProductRepository : IProductRepository {
 
     private suspend fun page(call: String, list: List<Product>, limit: Int, skip: Int): DataState<ProductsResponse> {
         calls += call
-        if (skip > 0) nextPageGate?.await()
+        if (skip > 0) nextPageGate?.await() else firstPageGate?.await()
         if (consumeFailure()) return DataState.Error(ErrorType.NETWORK)
         return DataState.Success(ProductsResponse(list.drop(skip).take(limit), list.size, skip, limit))
     }
