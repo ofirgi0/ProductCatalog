@@ -1,3 +1,24 @@
 <resources>
     <string name="app_name">Product Catalog</string>
+
+    <string name="product_list_title">Product Catalog</string>
+    <plurals name="cart_content_description">
+        <item quantity="one">Cart, %d item</item>
+        <item quantity="other">Cart, %d items</item>
+    </plurals>
+    <string name="search_placeholder">Search products</string>
+    <string name="clear_search">Clear search</string>
+    <string name="category_all">All</string>
+    <string name="empty_products_title">No products found</string>
+    <string name="empty_products_message">Try a different search or category.</string>
+    <string name="retry_categories">Retry categories</string>
+    <string name="load_more_failed">Couldn\'t load more products.</string>
+
+    <string name="error_network">No internet connection. Check your connection and try again.</string>
+    <string name="error_not_found">We couldn\'t find what you were looking for.</string>
+    <string name="error_server">Something went wrong. Please try again.</string>
+    <string name="retry">Retry</string>
+
+    <string name="discount_percent">-%d%%</string>
+    <string name="rating_content_description">Rated %1$s out of 5</string>
 </resources>
