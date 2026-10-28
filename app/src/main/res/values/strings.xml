@@ -19,6 +19,19 @@
     <string name="error_server">Something went wrong. Please try again.</string>
     <string name="retry">Retry</string>
 
+    <string name="back">Back</string>
+    <string name="add_to_cart">Add to Cart</string>
+    <string name="out_of_stock">Out of stock</string>
+    <string name="in_stock">In stock: %d</string>
+    <string name="brand">Brand: %s</string>
+    <string name="description_heading">Description</string>
+    <string name="added_to_cart">Added to cart</string>
+    <plurals name="cart_limit_reached">
+        <item quantity="one">The only one in stock is already in your cart</item>
+        <item quantity="other">All %d in stock are already in your cart</item>
+    </plurals>
+    <string name="view_cart">View cart</string>
+
     <string name="discount_percent">-%d%%</string>
     <string name="rating_content_description">Rated %1$s out of 5</string>
 </resources>

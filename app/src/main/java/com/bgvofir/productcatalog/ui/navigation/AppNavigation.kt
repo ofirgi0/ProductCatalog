@@ -6,7 +6,6 @@ import androidx.navigation.NavBackStackEntry
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.toRoute
 import com.bgvofir.productcatalog.ui.screens.cart.CartScreen
 import com.bgvofir.productcatalog.ui.screens.productdetail.ProductDetailScreen
 import com.bgvofir.productcatalog.ui.screens.productlist.ProductListScreen
@@ -28,11 +27,11 @@ fun AppNavigation() {
                 },
             )
         }
+        // ProductDetailViewModel reads the productId from its SavedStateHandle.
         composable<ProductDetailRoute> { entry ->
-            val route = entry.toRoute<ProductDetailRoute>()
             ProductDetailScreen(
-                productId = route.productId,
                 onBack = { if (entry.isResumed()) navController.popBackStack() },
+                onCartClick = { if (entry.isResumed()) navController.navigate(CartRoute) },
             )
         }
         composable<CartRoute> { entry ->
